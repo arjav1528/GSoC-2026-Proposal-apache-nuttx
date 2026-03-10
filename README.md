@@ -4,9 +4,6 @@
 
 ---
 
-- **Organization:** Apache Software Foundation
-- **Project:** Apache NuttX
-- **Proposal Title:** Micro-ROS Integration on NuttX
 - **Jira Issue:** [NUTTX-14](https://issues.apache.org/jira/browse/NUTTX-14)
 - **GitHub Discussion:** [#18508](https://github.com/apache/nuttx/issues/18508)
 - **Name:** Arjav Patel
