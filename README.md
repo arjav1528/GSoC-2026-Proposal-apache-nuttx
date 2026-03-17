@@ -4,12 +4,16 @@
 
 ---
 
+- **Organization:** Apache Software Foundation
+- **Project:** Apache NuttX
+- **Proposal Title:** Micro-ROS Integration on NuttX
 - **Jira Issue:** [NUTTX-14](https://issues.apache.org/jira/browse/NUTTX-14)
 - **GitHub Discussion:** [#18508](https://github.com/apache/nuttx/issues/18508)
 - **Name:** Arjav Patel
 - **Email:** [arjav1528@gmail.com](mailto:arjav1528@gmail.com)
 - **GitHub:** [https://github.com/arjav1528](https://github.com/arjav1528)
 - **Duration:** 12–14 weeks (~350 hours, large)
+- **Potential Mentors:** Alan Carvalho de Assis (acassis@apache.org), Project Devs (dev@nuttx.apache.org)
 
 ---
 
@@ -68,14 +72,15 @@ Micro-ROS runs a **DDS-XRCE (Data Distribution Service for eXtremely Resource Co
 
 ## Implementation Steps (How I Will Solve It)
 
-### Phase 1: Baseline and Orientation (Weeks 1–2)
+### Phase 1: Environment Setup and Baseline (Weeks 1–2)
 
 
 | Step | Task                                                                                              | Deliverable                                     |
 | ---- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| 1.1  | Attempt baseline build of `micro_ros_nuttx_app` against NuttX master; log all errors and warnings | Baseline build report with documented breakages |
-| 1.2  | Study Zephyr and FreeRTOS Micro-ROS ports (build layout, transport glue, example structure)       | Notes on structure and patterns to adopt        |
-| 1.3  | Sync with mentors on scope and priorities (mailing list / GitHub issue)                           | Agreed baseline and phasing                     |
+| 1.1  | Set up NuttX master, nuttx-apps, and `micro_ros_nuttx_app` in a reproducible environment          | Environment setup notes / script                |
+| 1.2  | Attempt baseline build of `micro_ros_nuttx_app` against NuttX master; log all errors and warnings | Baseline build report with documented breakages |
+| 1.3  | Study Zephyr and FreeRTOS Micro-ROS ports (build layout, transport glue, example structure)       | Notes on structure and patterns to adopt        |
+| 1.4  | Sync with mentors on scope and priorities (mailing list / GitHub issue)                           | Agreed baseline and phasing                     |
 
 
 ### Phase 2: Build System Fixes (Weeks 3–5)
@@ -153,6 +158,10 @@ Micro-ROS runs a **DDS-XRCE (Data Distribution Service for eXtremely Resource Co
 ---
 
 ## About Me
+
+**Full Name:** Arjav Pinakin Patel  
+
+**Background:** 3rd year undergraduate at BITS Pilani Goa, pursuing Electronics and Instrumentation Engineering.
 
 **Relevant Experience:** I have been exploring embedded systems and real-time software. I am familiar with C, build systems (Make, CMake), and RTOS concepts. I have started contributing to the NuttX ecosystem and opened the discussion issue [#18508](https://github.com/apache/nuttx/issues/18508) for this project to gather feedback and align with mentors.
 
