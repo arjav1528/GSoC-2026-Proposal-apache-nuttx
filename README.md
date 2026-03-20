@@ -1,168 +1,323 @@
-# GSoC Proposal: Apache NuttX
+# GSoC Proposal 2026 : Arjav Patel
 
-## Micro-ROS Integration on NuttX
+# Micro-ROS Integration on NuttX
+
+**Name :** Arjav Patel
+
+**Degree :** B.E. Electronics & Instrumentation Engineering
+
+**College :** BITS Pilani Goa Campus
+
+**Email :** [arjav1528@gmail.com](mailto:arjav1528@gmail.com)
+
+**GitHub :** https://github.com/arjav1528
+
+**Issue Thread :** https://github.com/apache/nuttx/issues/18508
+
+**JIRA Issue :** https://issues.apache.org/jira/browse/NUTTX-14
+
+**Potential Mentors :** Alan Carvalho de Assis ([acassis@apache.org](mailto:acassis@apache.org))
 
 ---
 
-- **Organization:** Apache Software Foundation
-- **Project:** Apache NuttX
-- **Proposal Title:** Micro-ROS Integration on NuttX
-- **Jira Issue:** [NUTTX-14](https://issues.apache.org/jira/browse/NUTTX-14)
-- **GitHub Discussion:** [#18508](https://github.com/apache/nuttx/issues/18508)
-- **Name:** Arjav Patel
-- **Email:** [arjav1528@gmail.com](mailto:arjav1528@gmail.com)
-- **GitHub:** [https://github.com/arjav1528](https://github.com/arjav1528)
-- **Duration:** 12–14 weeks (~350 hours, large)
-- **Potential Mentors:** Alan Carvalho de Assis (acassis@apache.org), Project Devs (dev@nuttx.apache.org)
+## **A Quick Look at NuttX (and Why It Matters)**
+
+**Apache NuttX** is one of the RTOS that we don’t usually see in textbooks; it actually shows up in real systems. It is specially designed for constrained hardware, but at same time, it tries to give you a dev experience that is very much familiar with Unix-like systems.
+
+This is what makes it interesting.
+
+On the other hand, you get real-time guarantees and the ability to run it on **microcontrollers.** Further, you still have POSIX-like APIs, a clean structure, and a fairly clean architecture. With the help of this, instead of writing everything from scratch, you can build structured applications even with constrained hardware.
+
+From what I’ve learnt and understood, this balance is the reason why NuttX is used in places where it actually matters, whether it’s IoT platforms or even space systems. Today, its not just about “running on small devices”, but doing that in a way that remains maintainable as system grows.
+
+Because of this, NuttX improvements have an real impact. If anything is missing, deprecated, it would directly affect the devs trying to build applications on top of NuttX.
+
+---
+
+## **Why Micro-ROS Belongs on NuttX**
+
+If you look at how robotics are structured today, ROS2 is almost somewhere in the picture, handling communication between the sensors, controllers, and higher-level logic.
+
+The main problem is that ROS2, by default, doesnt extend all the way down to microcontrollers. That’s where [micro-ROS](https://micro.ros.org/) comes in, bringing a ROS2 comaptible programming model to resource constrained devices, such that even small MCU can participate in large ROS2.
+
+micro-ROS is designed in such a way to run on top of an RTOS, & this is where NuttX comes into picture.
+
+NuttX already provides many of the things that micro-ROS expects from an RTOS:
+
+- a strong POSIX-style API surface
+- deterministic scheduling and real-time behaviour
+- support for networking and communication stacks
+- and the ability to scale across different microcontroller platforms
+
+This is exactly the kind of environment where NuttX is often used: embedded control nodes that need to be predictable and reliable.
+
+By the way, Micro-ROS already supports RTOS like FreeRTOS, Zephyr, and NuttX, and the core API remain largely consistent across them.
+
+So my project, which is **integrating micro-ROS to NuttX**, is not about reinventing anything; its about bringing it to same level of usability and stability as other RTOS.
 
 ---
 
 ## Project Summary
 
-This project aims to **revive and modernize Micro-ROS support on Apache NuttX**. [Micro-ROS](https://micro.ros.org) brings ROS 2 to microcontrollers—it uses a lightweight DDS-XRCE client on the MCU that communicates with an Agent on the host, bridging into the full ROS 2 network. Micro-ROS was originally developed on NuttX by Bosch and EU partners, and NuttX remains officially supported. However, after FreeRTOS and Zephyr support was added, the NuttX port stopped receiving attention and has fallen behind.
+At very high level, this project brings micro-ROS on NuttX back to a state where it actually feels usable with current eco-system.
 
-The work will focus on **bringing the `micro_ros_nuttx_app` codebase up to date** with current NuttX (master), fixing the build system (Make and CMake), validating and repairing transports (serial TERMIOS, UDP), resolving known open issues (e.g., `arm_hardfault` crash, `DIR` type redefinition), adding defconfigs for modern boards (STM32, ESP32, RP2040), improving examples and documentation, and establishing CI that builds against current NuttX.
+Micro-ROS itself is in its good place, as it follows ROS2 architecture, resuses a significant amount of its stack and uses DDS-XRCE as lightweight middleware to make ROS2 communication possible on microcontrollers. The design is simple yet effective: a compact local client connects to a specialized agent, which acts as a gateway into the complete ROS 2 network.
 
----
+My assumption behind this design is that there is a capable RTOS underneath that provides basic POSIX-like abstractions, deterministic, scheduling, and communication support. That’s exactly why micro-ROS officially supports ROTSes like FreeRTOS, Zephyr and NuttX.
 
-## Background and Context
+However, FreeRTOS and Zehpyr integrations have kept evolving; the NuttX side hasnt seen enough maintenance. But over that gap, micro-ROS stack is up-to-date, but the NuttX specific integration i.e, build system, examples, transports has fallen behind.
 
-### Micro-ROS Architecture
+From what I’ve read so far, the issue is not that the integration is fundamentally broken, but it’s that it has drifted out of sync with both NuttX and micro-ROS as they evolved independently.
 
-Micro-ROS runs a **DDS-XRCE (Data Distribution Service for eXtremely Resource Constrained Environments)** client on the microcontroller. This client connects over a transport (typically serial/UART or UDP) to a **Micro-ROS Agent** on a host (Linux, etc.). The Agent acts as a bridge between the MCU and the full ROS 2 DDS network, enabling microcontrollers to publish/subscribe to topics, call services, and participate in the ROS 2 ecosystem.
+**So the goal here is not to redesign anything from scratch.**
 
-### Current State of NuttX Support
+Instead, the goal is to carefully update the integration layer to align with the current state of both ecosystems:
 
-- **Library layer:** The `micro_ros_lib` build files (`Makefile`, `colcon.meta`, `toolchain.cmake.in`) in `micro_ros_nuttx_app` are maintained—updated for rolling releases and bumped to Kilted (mid-2025). The library itself is actively developed.
-- **NuttX integration:** The NuttX-specific glue has **not been updated since August 2021** (~4.5 years):
-  - Top-level `Makefile`, `Make.defs`, and the entire `example_app/` (Kconfig, `Make.defs`, `microros_main.c`) have not been touched
-  - No `CMakeLists.txt` for NuttX’s CMake build system
-  - Tutorial still references NuttX 10.0.0 docs
-  - CI only builds against NuttX 10.3 (not current master)
-- **Known issues:** Two notable open issues in [micro_ros_nuttx_app](https://github.com/micro-ROS/micro_ros_nuttx_app): [#17](https://github.com/micro-ROS/micro_ros_nuttx_app/issues/17) (unresolved `arm_hardfault` crash, 2021) and [#31](https://github.com/micro-ROS/micro_ros_nuttx_app/issues/31) (Roberto Bucher’s modifications for NuttX RTOS, including Nucleo-144 with UDP and the `DIR` type redefinition bug).
+- ensure it builds cleanly against current NuttX
+- verify that transports like serial and UDP work reliably
+- resolve long-standing issues that block usability
+- extend support to more relevant, modern boards
 
----
+An important part of this work is making the system approachable again. Micro-ROS already provides a consistent programming model across RTOSes, so using it on NuttX should feel as straightforward as on Zephyr or FreeRTOS.
 
-## Problem Statements
+I also want to ensure this doesn't become outdated again in a few months. That means adding CI support and aligning the structure with how other maintained ports are organized, so future updates don't silently break NuttX support.
 
-- **Outdated build system:** The NuttX integration uses stale Makefiles, Kconfig, and `toolchain.cmake`. There is no support for NuttX’s CMake build, which is increasingly the default for new boards.
-- **Unverified compatibility:** The last documented test was on NuttX 10.3. No systematic effort has been made to build or run `micro_ros_nuttx_app` against current NuttX master, so breakages are undocumented.
-- **Transport reliability:** Serial (TERMIOS) and UDP transports have not been validated on recent NuttX; the `arm_hardfault` and `DIR` redefinition issues suggest deeper compatibility problems.
-- **Limited board coverage:** Defconfigs and examples primarily target older STM32 boards. Modern, popular platforms (ESP32, RP2040) lack documented support.
-- **Documentation gap:** Tutorials and docs reference old NuttX versions; there is no up-to-date guide for building and running Micro-ROS on current NuttX.
+In short, this project is about restoring alignment—between micro-ROS, NuttX, and the expectations developers have when they use them together.
 
 ---
 
-## Proposed Solution (High Level)
+## Implementation Plan (Overview)
 
-1. **Establish a baseline**
-  - Build `micro_ros_nuttx_app` against current NuttX master and document every breakage. Use Zephyr and FreeRTOS ports as references for expected behavior and structure.
-2. **Fix the build system**
-  - Update Makefiles, `Make.defs`, Kconfig, and `toolchain.cmake` so the app builds cleanly. Add `CMakeLists.txt` for NuttX’s CMake build system.
-3. **Validate and fix transports**
-  - Test serial (TERMIOS) and UDP transports on current NuttX. Investigate and fix the `arm_hardfault` and `DIR` type redefinition issues.
-4. **Expand board support**
-  - Add defconfigs and test on ESP32 and RP2040, in addition to STM32.
-5. **Improve examples and documentation**
-  - Update the example app, add pub/sub and service examples, and update the Micro-ROS NuttX tutorial for current NuttX.
-6. **CI and long-term maintenance**
-  - Improve CI to build against current NuttX master and ensure future changes do not regress NuttX support.
+| ***Phase*** | ***Focus Area*** | ***Key Goals*** | ***Deliverables*** |
+| --- | --- | --- | --- |
+| Phase 1 (Week 1-2) | Baseline & Analysis | Understand current breakages | Build report + issue mapping |
+| Phase 2 (Week 3-5) | Build System Fixes | Make Project compile on current NuttX | Updated Make + CMake build |
+| Phase 3 (Week 6-7) | Transport & Debugging | Ensure runtime communication works | Stable serial + UDP transaport |
+| Phase 4 (Week 8-9) | Multi-Board Support | Validate portability across boards | ESP32 + RP2040 |
+| Phase 5 (Week 10-11) | Example & Documentation | Improve usablility & onboarding | Updated examples + tutorial |
+| Phase 6 (Week 12-14) | CI & Upstreaming | Ensure Long-term stability | CI + Merged Patches |
 
 ---
 
-## Implementation Steps (How I Will Solve It)
+## Implementation Plan (Details)
 
-### Phase 1: Environment Setup and Baseline (Weeks 1–2)
+### Phase 1 : Establishing a Baseline
 
+My first step will be to understand the current state instead of assuming anything works.
 
-| Step | Task                                                                                              | Deliverable                                     |
-| ---- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| 1.1  | Set up NuttX master, nuttx-apps, and `micro_ros_nuttx_app` in a reproducible environment          | Environment setup notes / script                |
-| 1.2  | Attempt baseline build of `micro_ros_nuttx_app` against NuttX master; log all errors and warnings | Baseline build report with documented breakages |
-| 1.3  | Study Zephyr and FreeRTOS Micro-ROS ports (build layout, transport glue, example structure)       | Notes on structure and patterns to adopt        |
-| 1.4  | Sync with mentors on scope and priorities (mailing list / GitHub issue)                           | Agreed baseline and phasing                     |
+Micro-ROS relies on a layered architecture where a lightweight DDS-XRCE client runs on the MCU and communicates with an agent that bridges it into the ROS 2 ecosystem.
 
+Because of this, even small inconsistencies in the build system or OS integration can completely break the workflow.
 
-### Phase 2: Build System Fixes (Weeks 3–5)
+So my approach here is simple:
 
+- try building `micro_ros_nuttx_app` against current NuttX
+- log every failure (build errors, missing headers)
+- categorise issues into tags like build system issues, API changes, and micro-ROS compatibility issues
 
-| Step | Task                                                                                            | Deliverable                               |
-| ---- | ----------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 2.1  | Update top-level Makefile, `Make.defs`, and Kconfig to work with current NuttX                  | Patched `micro_ros_nuttx_app` build files |
-| 2.2  | Update `toolchain.cmake.in` and library build configuration for current toolchain/NuttX headers | Patched `micro_ros_lib` build             |
-| 2.3  | Add `CMakeLists.txt` for NuttX CMake build system                                               | New CMake integration                     |
-| 2.4  | Achieve first clean build on at least one STM32 board                                           | Working build + defconfig                 |
-| 2.5  | Run nxstyle and fix any style issues                                                            | Clean, compliant patches                  |
+At the same time, I’ll also look up into **Zephyr** & **FreeRTOS** to study how thier ports are structured, as they are currently actively maintained.
 
+> **Outcome : A clear map of breakages and dependencies which will guide me for my further phases**
+> 
 
-### Phase 3: Transport Validation and Bug Fixes (Weeks 6–7)
+### Phase 2 : Fixing the Build System
 
+From my initial exploration, the biggest issue is that the build system is outdated relative to how NuttX is currently structured.
 
-| Step | Task                                                                | Deliverable                         |
-| ---- | ------------------------------------------------------------------- | ----------------------------------- |
-| 3.1  | Test serial (TERMIOS) transport on STM32; fix issues                | Verified serial transport           |
-| 3.2  | Test UDP transport; reproduce and fix `DIR` redefinition if present | Verified UDP transport              |
-| 3.3  | Investigate `arm_hardfault` issue (reproduce, isolate, propose fix) | Analysis + patch or upstream report |
-| 3.4  | Document transport usage and any NuttX-specific notes               | Transport documentation             |
+This phase will focus on aligning the integration with modern expectations:
 
+- updating Makefiles and `Make.defs`
+- fixing Kconfig integration
+- updating `toolchain.cmake`
+- adding proper **CMake support** (important since NuttX is moving toward it)
 
-### Phase 4: Multi-Board Support (Weeks 8–9)
+The goal isn't just to make it compile—it's to ensure:
 
+> the project builds the same way other modern NuttX apps do.
+> 
 
-| Step | Task                                                      | Deliverable                           |
-| ---- | --------------------------------------------------------- | ------------------------------------- |
-| 4.1  | Add defconfig for ESP32 (or equivalent)                   | ESP32 defconfig + build instructions  |
-| 4.2  | Add defconfig for RP2040 (or equivalent)                  | RP2040 defconfig + build instructions |
-| 4.3  | Test Micro-ROS Agent connectivity for at least two boards | Verification report                   |
+### Phase 3 : Transport Validation and Debugging
 
+Once the system builds, the next step is ensuring it actually works.
 
-### Phase 5: Examples and Documentation (Weeks 10–11)
+Micro-ROS depends on transports (serial, UDP, etc.) to communicate with the agent using a client–server model. If this layer is unstable, the entire system breaks.
 
+This phase includes:
 
-| Step | Task                                                          | Deliverable             |
-| ---- | ------------------------------------------------------------- | ----------------------- |
-| 5.1  | Update existing example app to current NuttX API and patterns | Updated `example_app/`  |
-| 5.2  | Add pub/sub example (e.g., publisher and subscriber nodes)    | New example(s)          |
-| 5.3  | Add service example (client and/or server)                    | New example(s)          |
-| 5.4  | Update Micro-ROS NuttX tutorial for current NuttX             | Revised tutorial / docs |
+- validating **serial (TERMIOS)** communication
+- validating **UDP transport**
+- reproducing known issues:
+    - `arm_hardfault`
+    - `DIR` redefinition
 
+This will likely be the most debugging-heavy phase:
 
-### Phase 6: CI and Upstream (Weeks 12–14)
+- memory constraints (micro-ROS is designed for very low RAM usage)
+- stack overflows and alignment issues
+- transport-level inconsistencies
 
+> **Outcome : MCU ↔ Agent communication is stable and repeatable**
+> 
 
-| Step | Task                                                              | Deliverable                    |
-| ---- | ----------------------------------------------------------------- | ------------------------------ |
-| 6.1  | Update or add CI job to build against NuttX master                | CI configuration change        |
-| 6.2  | Prepare summary document (changes, migration notes for users)     | Summary document               |
-| 6.3  | Submit patches to micro-ROS and/or NuttX; address review feedback | Patches submitted and iterated |
+### Phase 4: Expanding Board Support
 
+Once everything is on one board, next step would is generalization.
+
+Micro-ROS is designed to be portable across ROTS and hardware platforms with plauggable OS and transport layers. So NuttX support should reflect that flexibility.
+
+In this phase:
+
+- add support for ESP32 and RP2040
+- test build + basic functionality
+- document the board specific quirks
+
+My goal is not covering every board, but proving that
+
+> **integration is not tied to a single setup**
+> 
+
+### Phase 5: Examples and Documentation
+
+At this stage, the things should work, but obviously usability matters just as much.
+
+Micro-ROS already provides a consistent programming model across RTOSes, so ideally:
+
+> **using it on NuttX should feel just as easy as on Zephyr and FreeRTOS**
+> 
+
+This phase will focus on:
+
+- updating the example app
+- adding pub/sub example and service example
+- rewriting outdated tutorials
+
+> **Outcome: A new user should be able to see the data flowing without debugging ginternals when he/she follows the steps and run the example**
+> 
+
+### Phase 6: CI and Long-Term Stability
+
+One of the main reasons this integration fell behind is the lack of continuous validation.
+
+This final phase ensures long-term sustainability:
+
+- set up CI to build against current NuttX
+- ensure compatibility doesn't silently break
+- submit patches upstream (micro-ROS / NuttX)
+
+> **Outcome: Not just a working system, but a system that stays working.**
+> 
+
+I’m fully expecting some 'interesting' behaviour from these different boards, and I’m ready to get my hands dirty to make it all work seamlessly.
+
+So instead of treating it as a rigid sequence, I’ll follow an iterative process which includes fixing a layer, then validating and then moving forward. This ensures that each phase builds on something stable instead of stacking assumptions.
 
 ---
 
 ## Deliverables
 
-- **Code:** Patched `micro_ros_nuttx_app` (Makefiles, `Make.defs`, Kconfig, `toolchain.cmake`), new `CMakeLists.txt`, updated `example_app/`, new pub/sub and service examples, defconfigs for STM32, ESP32, RP2040 (or equivalent boards).
-- **Documentation:** Updated Micro-ROS NuttX tutorial, transport notes, and migration/summary document for current NuttX.
-- **Testing:** Verified builds on at least 3 boards; validated serial and UDP transports; CI building against NuttX master.
-- **Upstream:** Patches submitted to micro-ROS and/or NuttX mailing lists / GitHub, with review feedback addressed.
+By the end of this project, I expect to have:
+
+### Code
+
+- A fully updated `micro_ros_nuttx_app` that builds cleanly with current NuttX
+- Modernized build system:
+    - Updated Makefiles and Kconfig
+    - CMake support aligned with current NuttX workflows
+- Stable transport implementations:
+    - Serial (TERMIOS)
+    - UDP
+- Fixes for known issues (including `arm_hardfault` and `DIR` redefinition, if reproducible)
+- Board support for:
+    - STM32 (baseline)
+    - ESP32
+    - RP2040
+
+### Examples
+
+- Updated example application compatible with current NuttX APIs
+- Minimal **publisher/subscriber example**
+- Simple **service example**
+- All examples tested with a working Micro-ROS Agent setup
+
+### Documentation
+
+- Updated Micro-ROS NuttX tutorial (aligned with current versions)
+- Transport setup and debugging notes
+- Clear build + run instructions for supported boards
+- A short migration/summary guide explaining key changes
+
+### Testing and Validation
+
+- Verified builds on multiple boards
+- Confirmed communication between MCU and agent (serial + UDP)
+- Basic functional validation of pub/sub and service flows
+
+### Upstream Contributions
+
+- Patches submitted to micro-ROS / NuttX repositories
+- Iteration based on maintainer feedback
+- CI setup to build against current NuttX (to avoid future drift)
 
 ---
 
-## Resources
+## Why this Project
 
-- [micro_ros_nuttx_app](https://github.com/micro-ROS/micro_ros_nuttx_app) – NuttX application repository
-- [Micro-ROS](https://micro.ros.org) – Project website and documentation
-- [Micro-ROS NuttX Tutorial](https://micro.ros.org/docs/tutorials/core/first_application_rtos/nuttx/) – First micro-ROS application on NuttX (to be updated)
-- [DDS-XRCE Specification](https://www.omg.org/spec/DDS-XRCE/1.0/About-DDS-XRCE) – Protocol reference (OMG, v1.0)
+What I find particularly intresting about this project is that it sits at the boundary between embedded systems and scaled distributed systems.
+
+Micro-ROS extends the ROS 2 ecosystem to microcontrollers using a lightweight DDS-XRCE-based client–server model. The device communicates with an external agent that represents it in the ROS 2 network, making it possible to integrate even highly constrained devices into larger systems.
+
+NuttX provides the RTOS environment this model needs—predictable scheduling, a POSIX-like interface, and support for multiple communication mechanisms.
+
+This project is interesting not just because of the individual components, but because of how they fit together.
+
+Improving this integration means:
+
+- making it easier to connect embedded nodes into ROS 2 systems
+- reducing friction for developers choosing NuttX
+- ensuring that a well-designed system is actually usable in practice
 
 ---
 
 ## About Me
 
-**Full Name:** Arjav Pinakin Patel  
+I'm a third-year undergraduate at BITS Pilani Goa, studying Electronics and Instrumentation Engineering.
 
-**Background:** 3rd year undergraduate at BITS Pilani Goa, pursuing Electronics and Instrumentation Engineering.
+Over the past few months, I've focused on embedded systems and real-time software—specifically how low-level systems integrate with larger software stacks. I work comfortably in C and have hands-on experience with build systems like Make and CMake in embedded contexts.
 
-**Relevant Experience:** I have been exploring embedded systems and real-time software. I am familiar with C, build systems (Make, CMake), and RTOS concepts. I have started contributing to the NuttX ecosystem and opened the discussion issue [#18508](https://github.com/apache/nuttx/issues/18508) for this project to gather feedback and align with mentors.
+What I enjoy most about this space is that it’s very hands-on — when something doesn’t work, you have to dig through layers (build system, OS, hardware), and when it finally works, it’s very satisfying because it’s real.
 
-**Why This Project:** Micro-ROS brings ROS 2’s robotics middleware to resource-constrained devices, and NuttX is a mature, POSIX-compliant RTOS used in real IoT and robotics products. Restoring and modernizing the NuttX port will help robotics developers choose NuttX without sacrificing ROS 2 integration. I want to contribute to a project that sits at the intersection of embedded systems and robotics, where clarity, compatibility, and maintainability matter. I am motivated to learn from the micro-ROS and NuttX communities and to produce work that remains useful beyond GSoC.
+---
+
+## Why Me
+
+I believe I'm well-suited for this project for several reasons.
+
+First, I'm genuinely interested in the problem space—not just Micro-ROS or NuttX individually, but the challenge of making different systems work together reliably.
+
+Second, I've contributed to open-source projects in this ecosystem, including Apache NuttX and Apache Airflow. This experience has made me comfortable with real-world codebases, review processes, and collaborative development. Some of my contributions include:
+
+### Apache Airflow
+
+- https://github.com/apache/airflow/pull/61095
+- https://github.com/apache/airflow/pull/60394
+- https://github.com/apache/airflow/pull/60313
+- https://github.com/apache/airflow/pull/60118
+- https://github.com/apache/airflow/pull/60111
+- https://github.com/apache/airflow/pull/60029
+
+### Apache NuttX
+
+- https://github.com/apache/nuttx/pull/18543
+- https://github.com/apache/nuttx/pull/18521
+- https://github.com/apache/nuttx/pull/18493
+- https://github.com/apache/nuttx/pull/18347
+- https://github.com/apache/nuttx/pull/18400
+- https://github.com/apache/nuttx/pull/18426
+
+### Apache NuttX-Apps
+
+- https://github.com/apache/nuttx-apps/pull/3402
+
+Third, I'm comfortable working through debugging-heavy problems. Much of this project will involve tracking down compatibility issues across layers—build system, RTOS APIs, and transports—and I'm prepared to iterate through that process.
+
+Finally, I'm focused on **maintainability**, not just short-term fixes. The goal isn't simply to get things working once, but to ensure they stay working as both NuttX and Micro-ROS evolve.
